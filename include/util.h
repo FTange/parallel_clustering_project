@@ -7,12 +7,10 @@
 #include <sstream>
 #include <algorithm>
 
-using namespace std;
+std::vector<std::vector<float> > read_csv(std::string filename);
 
-vector<vector<float>> read_csv(string filename);
+void print_vector_of_vectors(std::vector<std::vector<float> > &rows);
 
-void print_vector_of_vectors(vector<vector<float>> &rows);
-
-void print_vector(vector<float> &row);
+void print_vector(std::vector<float> &row);
 
 #endif
