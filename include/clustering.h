@@ -7,7 +7,10 @@
 
 #include "util.h"
 
-std::vector<int> dbscan(std::vector<std::vector<float> > &db, double eps, int minPts);
+std::vector<int> dbscan(std::vector<std::vector<float> > &db, double eps, int minPts, 
+				 std::function<double (std::vector<float> &, 
+									   std::vector<float> &)> dist /* distance function */
+		);
 
 /*
  * calculate the neighors of point in db with dist less then eps
@@ -29,6 +32,11 @@ int neighborhood(std::vector<std::vector<float> > &db,
 void extend_cluster(std::vector<std::vector<float> > &db, int point, double eps, int minPts,
 					std::function<double (std::vector<float> &, std::vector<float> &)> dist, 
 					std::vector<int> &clustering, int currCluster);
+
+/*
+ * Only calculate dist in the subspace
+ */
+double euclid_dist_subspace(unsigned int *subspace, std::vector<float> &p1, std::vector<float> &p2);
 
 double euclid_dist(std::vector<float> &p1, std::vector<float> &p2);
 
