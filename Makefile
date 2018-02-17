@@ -5,11 +5,12 @@ OBJ = ./obj
 
 OBJ_FILES = $(OBJ)/util.o \
 			$(OBJ)/clustering.o \
+			$(OBJ)/subspace.o \
 			$(OBJ)/main.o
 
 CC = g++
 
-CFLAGS = -c -I$(INC)
+CFLAGS = -c -I$(INC) --std=c++11
 
 all: $(BIN)/main
 
@@ -19,7 +20,10 @@ $(BIN)/main: $(OBJ_FILES)
 $(OBJ)/main.o: $(SRC)/main.cpp $(INC)/main.h
 	$(CC) $(CFLAGS) -o $(OBJ)/main.o $(SRC)/main.cpp
 
-$(OBJ)/clustering.o: $(SRC)/clustering.cpp $(INC)/main.h
+$(OBJ)/subspace.o: $(SRC)/subspace.cpp $(INC)/subspace.h
+	$(CC) $(CFLAGS) -o $(OBJ)/subspace.o $(SRC)/subspace.cpp
+
+$(OBJ)/clustering.o: $(SRC)/clustering.cpp $(INC)/clustering.h
 	$(CC) $(CFLAGS) -o $(OBJ)/clustering.o $(SRC)/clustering.cpp
 
 $(OBJ)/util.o: $(SRC)/util.cpp $(INC)/util.h
@@ -27,3 +31,4 @@ $(OBJ)/util.o: $(SRC)/util.cpp $(INC)/util.h
 
 clean:
 	rm $(OBJ)/*.o
+	rm $(BIN)/main
