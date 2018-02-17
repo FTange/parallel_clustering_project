@@ -6,6 +6,7 @@
 
 #include "util.h"
 #include "clustering.h"
+#include "subspace.h"
 
 using namespace std;
 
