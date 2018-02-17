@@ -65,6 +65,21 @@ void extend_cluster(vector<vector<float> > &db, int point, double eps, int minPt
 	}
 }
 
+int neighborhood(vector<vector<float>> &db, int point, double eps,
+				 function<double (vector<float> &, vector<float> &)> dist,
+				 int *neighborhood) {
+	int neighborhood_size = 0;
+	for (int i = 0; i < db.size(); i++) {
+		if (i == point) { continue; }
+		double dist_i = dist(db[point], db[i]);
+		if (dist_i <= eps) {
+			neighborhood[neighborhood_size] = i;
+			neighborhood_size++;
+		}
+	}
+	return neighborhood_size;
+}
+
 
 double euclid_dist(vector<float> &p1, vector<float> &p2) {
 	double distance = 0;
