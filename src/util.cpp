@@ -1,8 +1,11 @@
 #include "util.h"
 
-vector<vector<float>> read_csv(string filename) {
-	vector<vector<float>> rows;
-	ifstream infile(filename);
+using std::vector;
+using std::string;
+
+std::vector<vector<float> > read_csv(string filename) {
+	vector<vector<float> > rows;
+	std::ifstream infile(filename);
 	if (!infile.is_open()) {
 		printf("unable to open file");
 		return rows;
@@ -16,7 +19,7 @@ vector<vector<float>> read_csv(string filename) {
 	do {
 		int i = 0;
 		vector<float> row(dimensions);
-		istringstream s(line);
+		std::istringstream s(line);
 		while (getline(s, field, ',')) {
 			field_f = stod(field);
 			row[i++] = field_f;
@@ -30,20 +33,20 @@ vector<vector<float>> read_csv(string filename) {
 	return rows;
 }
 
-void print_vector_of_vectors(vector<vector<float>> &rows) {
-	for (vector<vector<float>>::iterator it = rows.begin(); it != rows.end(); it++) {
+void print_vector_of_vectors(vector<vector<float> > &rows) {
+	for (vector<vector<float> >::iterator it = rows.begin(); it != rows.end(); it++) {
 		for (vector<float>::iterator it2 = (*it).begin(); it2 != (*it).end(); it2++) {
-			cout << *it2 << " ";
+			std::cout << *it2 << " ";
 		}
-		cout << endl;
+		std::cout << std::endl;
 	}
 }
 
 // use template for vector of ints, double...
 void print_vector(vector<float> &row) {
-	// for (vector<vector<float>>::iterator it = row.begin(); it != row.end(); it++) {
+	// for (vector<vector<float> >::iterator it = row.begin(); it != row.end(); it++) {
 	for (auto elem : row) {
-		cout << elem << " ";
+		std::cout << elem << " ";
 	}
-	cout << endl;
+	std::cout << std::endl;
 }
