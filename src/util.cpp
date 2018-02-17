@@ -1,3 +1,10 @@
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <set>
+
 #include "util.h"
 
 using std::vector;
@@ -49,4 +56,18 @@ void print_vector(vector<float> &row) {
 		std::cout << elem << " ";
 	}
 	std::cout << std::endl;
+}
+
+vector<std::set<int> > clusters_as_sets(vector<int> clustering) {
+	int clusters = 1 + *std::max_element(clustering.begin(), clustering.end());
+	vector<std::set<int> > sets(clusters);
+	for (int i = 0; i < clusters; i++) {
+		std::set<int> cluster_i;
+		sets[i] = cluster_i;
+	}
+	for (int i = 0; i < clustering.size(); i++) {
+		sets[clustering[i]].insert(i);
+	}
+
+	return sets;
 }
