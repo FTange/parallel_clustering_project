@@ -10,7 +10,9 @@ OBJ_FILES = $(OBJ)/util.o \
 
 CC = g++
 
-CFLAGS = -c -I$(INC) --std=c++11
+LFLAGS = -fopenmp
+
+CFLAGS = -c -I$(INC) --std=c++11 -fopenmp
 
 all: $(BIN)/main
 
