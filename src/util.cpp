@@ -3,7 +3,7 @@
 using std::vector;
 using std::string;
 
-std::vector<vector<float> > read_csv(string filename) {
+vector<vector<float> > read_csv(string filename) {
 	vector<vector<float> > rows;
 	std::ifstream infile(filename);
 	if (!infile.is_open()) {
