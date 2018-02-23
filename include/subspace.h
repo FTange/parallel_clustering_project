@@ -7,4 +7,8 @@
 void subspace_clustering(std::vector<std::vector<float> > &db, int dim, 
 					double epsilon, int minPts);
 
+// enumerate all subspaces
+void subspace_clustering_enum(std::vector<std::vector<float> > &db, int dim, 
+					double epsilon, int minPts);
+
 #endif
