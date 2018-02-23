@@ -9,31 +9,65 @@
 using std::vector;
 
 void cluster_in_subspace(vector<vector<float> > &db, int dim, double epsilon, int minPts,
-                unsigned int subspace, vector<int> *clusterings[], vector<long> &spaces);
+                unsigned int subspace, vector<int> *clusterings[], vector<long> &spaces, 
+                omp_lock_t locks[]);
+
+int it = 0;
 
 void subspace_clustering(vector<vector<float> > &db, int dim, double epsilon, int minPts) {
 	int n = pow(2, dim);
 	vector<long> spaces(n); // supports up to 64 dimensions
 	// vector<vector<int> > clusterings(n);
 	vector<int> *clusterings[n] = {NULL};
+    omp_lock_t locks[n];
    #pragma omp parallel
 	{
-   #pragma omp single
-    {
+    int id = omp_get_thread_num();
+    // make master create tasks for 1d spaces, while the others create locks
+    if (id == 0) {
         for (int i = 0; i < dim; i++) {
             unsigned int subspace = 1 << i;
            #pragma omp task firstprivate(subspace)
             {
                 cluster_in_subspace(db, dim, epsilon, minPts, subspace, 
-                                    clusterings, spaces);
+                                    clusterings, spaces, locks);
             }
         }
 	}
+   #pragma omp for schedule(dynamic)
+    for (int i = 1; i < n; i++) {
+        omp_init_lock(&(locks[i]));
     }
+    }
+    /*
+    for (int i = 1; i < it; i++) { 
+        int blah = 0;
+        vector<int> *subspace_cluster = clusterings[i];
+        if (subspace_cluster != NULL) {
+            for (int c : *subspace_cluster) {
+                if (c == -1) {
+                    blah++;
+                }
+            }
+            std::cout << blah << std::endl; 
+        }
+    }
+    */
+
+    for (int i = 1; i < n; i++) {
+        omp_destroy_lock(&(locks[i]));
+    }
+    for (int i = 1; i < n; i++) {
+        delete clusterings[i];
+    }
+    /*
     std::cout << "got to here" << std::endl;
     for (int i = 1; i < n; i++) {
         std::cout << i << " " << spaces[i] << " " << __builtin_popcountll(i) << std::endl;
     }
+    */
+
+    std::cout << it << std::endl;
 
     /*
     // std::cout << "clustered " << clusterings_completed << " " << std::endl;
@@ -50,12 +84,14 @@ void subspace_clustering(vector<vector<float> > &db, int dim, double epsilon, in
 
 // local function to handle a single subspace in subspace clustering
 void cluster_in_subspace(vector<vector<float> > &db, int dim, double epsilon, int minPts,
-                unsigned int subspace, vector<int> *clusterings[], vector<long> &spaces) {
+                unsigned int subspace, vector<int> *clusterings[], vector<long> &spaces,
+                omp_lock_t locks[]) {
 
     // create distance function for the subspace
     auto dist_with_subspace = [&] (vector<float> p1, vector<float> p2) {
         return euclid_dist_subspace(&subspace, p1, p2); 
     };
+    it++;
 
     vector<int> *clustering;
     // if we already have allocated a subspace vector use it
@@ -65,31 +101,58 @@ void cluster_in_subspace(vector<vector<float> > &db, int dim, double epsilon, in
         clustering = clusterings[subspace];
     }
 
+    /*
+    int blah = 0;
+    for (int c : *clustering) {
+        if (c == -1) {
+            blah++;
+        }
+    }
+    std::cout << blah << std::endl; 
+    */
+
     dbscan(db, epsilon, minPts, dist_with_subspace, *clustering);
-    // check that clustering contains one cluster
+    bool contains_cluster = false;
+    for (int c : *clustering) {
+        if (c >= 1) {
+            contains_cluster = true;
+            break;
+        }
+    }
+    if (!contains_cluster) {
+        return;
+    }
     clusterings[subspace] = clustering;
 
     for (int i = 0; i < dim; i++) {
         unsigned int superspace = subspace | (1 << i);
         if (superspace > subspace) { // space of one more dimension
             // acquire lock
-            #pragma omp atomic
-                spaces[superspace]++;
-
-            if (superspace == 1022) {
-                std::cout << subspace << " " << __builtin_popcount(subspace) << std::endl;
+            omp_set_lock(&(locks[superspace]));
+            spaces[superspace]++;
+            if (clusterings[superspace] == NULL) {
+                clusterings[superspace] = new vector<int>(db.size());
             }
-            // superspace not ready to be handled
-            if (spaces[superspace] != __builtin_popcount(spaces[superspace])) { continue; }
+            vector<int> &subspace_cluster = *clustering;
+            vector<int> &superspace_cluster = *clusterings[superspace];
+            for (int j = 0; j < db.size(); j++) {
+                if (subspace_cluster[i] == 0) {
+                    superspace_cluster[i] = -1;
+                }
+            }
+            long subspaces_completed = spaces[superspace];
+            omp_unset_lock(&(locks[superspace]));
 
+            // superspace not ready to be handled
+            if (subspaces_completed < __builtin_popcount(superspace)) { continue; }
 
             // check if we can prune superspace before we create task
            #pragma omp task shared(spaces, clusterings) firstprivate(superspace)
             {
-            cluster_in_subspace(db, dim, epsilon, minPts, superspace, 
-                                clusterings, spaces);
+                cluster_in_subspace(db, dim, epsilon, minPts, superspace, 
+                                    clusterings, spaces, locks);
             }
-        } 
+        }
     }
 }
 
