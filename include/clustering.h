@@ -1,6 +1,7 @@
 #ifndef __CLUSTERING_H_INCLUDED
 #define __CLUSTERING_H_INCLUDED
 
+#include <iostream>
 #include <vector>
 #include <cmath>
 #include <functional>
@@ -12,6 +13,12 @@ std::vector<int> dbscan(std::vector<std::vector<float> > &db, double eps, int mi
 									   std::vector<float> &)> dist /* distance function */
 		);
 
+// stores result in vector<int> clustering instead of returning it
+void dbscan(std::vector<std::vector<float> > &db, double eps, int minPts, 
+				 std::function<double (std::vector<float> &, 
+									   std::vector<float> &)> dist, /* distance function */
+                 std::vector<int> &clustering
+		);
 /*
  * calculate the neighors of point in db with dist less then eps
  * and store those neighobors in neighborhood and return the number found

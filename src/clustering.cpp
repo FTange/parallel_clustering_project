@@ -25,6 +25,25 @@ vector<int> dbscan(vector<vector<float> > &db, double eps, int minPts,
 	return clustering;
 }
 
+// saves result in vector<int> clustering
+void dbscan(vector<vector<float> > &db, double eps, int minPts,
+				 std::function<double (vector<float> &, vector<float> &)> dist,
+				 std::vector<int> &clustering) {
+	int n = db.size();
+
+	int numCluster = 1;
+	for (int i = 0; i < n; i++ ) {
+		if (clustering[i] != 0) { continue; } /* i is already classified */
+
+		// if i has been added to new cluster, increment numCluster
+		extend_cluster(db, i, eps, minPts, dist, clustering, numCluster);
+		// point i and everything density-reachable from it has been added to numCluster
+		if (clustering[i] == numCluster) {
+			numCluster++;
+		}
+	}
+}
+
 /*
  * Should unclustered_neighbors be a parameter so it can be reused?
  */
