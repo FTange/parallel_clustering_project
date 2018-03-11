@@ -24,6 +24,20 @@ inline inscy_node *insert_node(inscy_node *head, short dim, short interval,
 inline int find_bin(float min, double interval, float value);
 
 
+/*
+ * insert a row number when we get to the end, 
+ * get the vector and treat it like ints using memcpy
+ *
+ * check that &last_element - &current_element - sizeof(int) is positive
+ * if not resize the vector, otherwise memcopy to first_element + count * sizeof(int)
+ *
+ * inscy_child *p = node.children.data();
+ *
+ * memcpy(p, &a, sizeof(int));
+ *
+ * int point;
+ * memcpy(&point, p, sizeof(int));
+ */
 inscy_node *init_scy_tree(std::vector<std::vector<float> > &db, double eps) {
 
     int dim = db[0].size();
@@ -42,22 +56,15 @@ inscy_node *init_scy_tree(std::vector<std::vector<float> > &db, double eps) {
         // head = root;
         insert_point(root, db[i], eps, mins, maxs, interval_size);
     }
-    /*
-    head = root->children[0].child;
-    while (head != NULL) {
-        cout << "head points to node in dim " << head->descr.dim <<
-           " in interval " << head->descr.interval <<
-           " border " << head->descr.border << " and count " << head->count << endl;
-        head = head->children[0].child;
 
-    }
-    */
     int child_count = 0;
-    for (inscy_child child : root->children) {
-        inscy_node *ptr = child.child;
-        cout << "count of interval " << ptr->descr.interval << " in dim " << 
-            ptr->descr.dim << " and is border " << ptr->descr.border << " is " << ptr->count << endl;
-        child_count += ptr->count;
+    for (int i = 0; i < bins * 2; i += 2) {
+        inscy_node *ptr = root->children[i];
+        if (ptr != NULL) {
+            cout << "count of interval " << ptr->descr.interval << " in dim " << 
+                ptr->descr.dim << " and is border " << ptr->descr.border << " is " << ptr->count << endl;
+            child_count += ptr->count;
+        }
     }
     cout << "total count is " << child_count << endl;
     cout << "database size is " << db.size() << endl;
@@ -111,29 +118,17 @@ void insert_point(inscy_node *head, vector<float> &point, double eps,
 
 inline inscy_node *insert_node(inscy_node *head, short dim, short interval, 
         bool isBorderPoint, bool isBorderDim) {
-    descriptor descr = {dim, interval, isBorderPoint & isBorderDim};
+
+    bool border = isBorderPoint & isBorderDim;
+    descriptor descr = {dim, interval, border};
     inscy_node *child = new inscy_node({descr, !isBorderPoint? 1 : 0});
-    /*
-    child->count = !isBorderPoint? 1 : 0; // don't count borders
-    child->descr.dim = dim;
-    child->descr.interval = interval;
-    child->descr.border = isBorderPoint;
-    */
 
-    inscy_child child_ptr = {descr, child};
-
-    head->children.push_back(child_ptr);
-
+    head->children[2*interval + border] = child;
     return child;
 }
 
 inline inscy_node *find_child(inscy_node *head, int bin, bool border) {
-    for (inscy_child child : head->children) {
-        if (child.descr.interval == bin && child.descr.border == border) {
-            return child.child;
-        }
-    }
-    return NULL;
+    return head->children[2*bin+border];
 }
 
 // calculates a value between 0 and interval for each value `value`
@@ -193,8 +188,11 @@ int pointsOnLevelK(inscy_node *head, int currLvl, int k) {
         return head->count;
     }
     int points = 0;
-    for (inscy_child child : head->children) {
-        points += pointsOnLevelK(child.child, currLvl+1, k);
+    for (int i = 0; i < 2*bins; i += 2) {
+        inscy_node *child = head->children[i];
+        if (child != NULL) {
+            points += pointsOnLevelK(child, currLvl+1, k);
+        }
     }
     return points;
 }
@@ -205,28 +203,38 @@ bool borderCountIsZero(inscy_node *head, int lvl = 0) {
         cout << "border point at lvl " << lvl << " was " << head->count << endl;
         return false;
     }
-    for (inscy_child child : head->children) {
-        if (child.descr.border) {
-            borderZero = borderZero & borderCountIsZero(child.child, lvl+1);
+    for (int i = 0; i < 2*bins; i++) {
+        inscy_node *child = head->children[i];
+        if (child != NULL) {
+            borderZero = borderZero & borderCountIsZero(child, lvl+1);
         }
     }
     return borderZero;
 }
 
 bool dimPathLength(inscy_node *head, int dim, int lvl = 0) {
-    if (lvl == dim || head->children.size() == 0) {
-        if ( !(lvl == dim & head->children.size()) ) {
-            cout << "we are on lvl " << lvl << " children is " << head->children.size() << 
+    bool noChildren = true;
+    for (int i = 0; i < 2*bins; i+=2) {
+        if (head->children[i] != NULL) {
+            noChildren = false;
+            break;
+        }
+    }
+
+    if (lvl == dim || noChildren) {
+        if ( !(lvl == dim & noChildren) ) {
+            cout << "we are on lvl " << lvl << " with all children null " <<
                " dim: " << head->descr.dim << 
                " interval: " << head->descr.interval <<
               " border: " << head->descr.border << endl;
         }
-        return lvl == dim & head->children.size() == 0;
+        return lvl == dim & noChildren;
     }
     bool dPathLength = true;
-    for (inscy_child child : head->children) {
-        if (child.descr.border) {
-            dPathLength = dPathLength & dimPathLength(child.child, lvl+1, dim);
+    for (int i = 0; i < 2*bins; i+=2) {
+        inscy_node *child = head->children[i];
+        if (child != NULL) {
+            dPathLength = dPathLength & dimPathLength(child, dim, lvl+1);
         }
     }
     return dPathLength;
@@ -241,9 +249,12 @@ bool dimSameAsLevel(inscy_node *head, int lvl = 0) {
                 head->descr.dim << " border is " << head->descr.border << endl;
         }
     }
-    for (inscy_child child : head->children) {
-        lvlCorrect = lvlCorrect & (child.descr.dim == lvl);
-        dimSameAsLevel(child.child, lvl+1);
+    for (int i = 0; i < 2*bins; i++) {
+        inscy_node *child = head->children[i];
+        if (child != NULL) {
+            lvlCorrect = lvlCorrect & (child->descr.dim == lvl);
+            dimSameAsLevel(child, lvl+1);
+        }
     }
     return lvlCorrect;
 }
@@ -251,30 +262,24 @@ bool dimSameAsLevel(inscy_node *head, int lvl = 0) {
 // doesn't check whether there is a point that is a border point but
 // no non-border sibling exists - then we also need to know if we are
 // in a border path.
-bool properChildren(inscy_node *head, int interval, int dim) {
-    if (head->children.size() > interval * 2) {
-        cout << "Too many children at node in dim " << head->descr.dim << 
-            " interval " << head->descr.interval << " and border " <<
-            head->descr.border << endl;
-        return false;
-    }
-    for (int i = 0; i < head->children.size(); i++) {
-        inscy_child child = head->children[i];
-        for (int j = 0; j < head->children.size(); j++) {
-            if (i == j) { continue; }
-            inscy_child otherChild = head->children[j];
-            if (child.descr.interval == otherChild.descr.interval &&
-                child.descr.border   == otherChild.descr.border) {
-                cout << "found duplicates in dimension" << child.descr.dim
-                    << " interval " << child.descr.interval << " border: "
-                    << child.descr.border << endl;
-                return false;
-            }
+bool properChildren(inscy_node *head) {
+    for (int i = 0; i < 2*bins; i += 2) {
+        if (head->children[i] == NULL &&
+            head->children[i+1] != NULL) {
+            cout << "border exists without non-border sibling in dim " <<
+                head->descr.dim << " and interval " << head->descr.dim << endl;
+            return false;
         }
-        properChildren(head->children[i].child, interval, dim);
+    }
+    bool childrenCorrect = true;
+    for (int i = 0; i < 2*bins; i += 2) {
+        if (head->children[i] != NULL) {
+            childrenCorrect &= properChildren(head->children[i]);
+        }
     }
     return true;
 }
+
 
 // check that each level contains the correct count
 // check that all counts in subtrees of border points are 0
@@ -290,13 +295,13 @@ bool check_inscy_tree(inscy_node *root, int dim, int numPoints) {
 
     valid_tree = valid_tree & borderCountIsZero(root);
     cout << "is tree valid " << valid_tree << endl;
-    // valid_tree = valid_tree & dimPathLength(root, dim);
+    valid_tree = valid_tree & dimPathLength(root, dim);
     cout << "is tree valid " << valid_tree << endl;
     valid_tree = valid_tree & dimSameAsLevel(root);
     cout << "is tree valid " << valid_tree << endl;
 
     // check that at most 2d nodes at any level and every combination only occurs once
-    valid_tree = valid_tree & properChildren(root, bins, dim);
+    valid_tree = valid_tree & properChildren(root);
     cout << "is tree valid " << valid_tree << endl;
 
     return valid_tree;
