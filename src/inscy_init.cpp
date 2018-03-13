@@ -11,7 +11,7 @@ using std::endl;
 
 void insert_point(inscy_node *head, vector<float> &point, double eps,
         vector<float> &mins, vector<float> &maxs, vector<double> &interval_size,
-        int currLvl = 0, bool borderPath = false);
+        int currLvl = 1, bool borderPath = false);
 void find_min_max_intervals( std::vector<std::vector<float> > &db,
         vector<float> &maxs, vector<float> &mins, vector<double> &intervals);
 
@@ -76,7 +76,7 @@ void insert_point(inscy_node *head, vector<float> &point, double eps,
     int j = currLvl, bin;
 
     // find how much already exists in the tree
-    for ( ; j < point.size(); j++) {
+    for ( ; j <= point.size(); j++) {
         bin = find_bin(mins[j], interval_size[j], point[j]);
         bool isBorderDim = std::fmod((point[j] - mins[j]), interval_size[j]) < eps;
         // even though this is a border dimension we are only looking for border node if 
@@ -98,7 +98,7 @@ void insert_point(inscy_node *head, vector<float> &point, double eps,
         head = child;
     }
     // create nodes from j to d
-    for ( ; j < point.size(); j++) {
+    for ( ; j <= point.size(); j++) {
         bin = find_bin(mins[j], interval_size[j], point[j]);
         bool isBorderDim = std::fmod((point[j] - mins[j]), interval_size[j]) < eps;
 
@@ -241,7 +241,7 @@ bool dimPathLength(inscy_node *head, int dim, int lvl = 0) {
 bool dimSameAsLevel(inscy_node *head, int lvl = 0) {
     bool lvlCorrect = true;
     if (lvl != 0) {
-        lvlCorrect = head->descr.dim == lvl-1;
+        lvlCorrect = head->descr.dim == lvl;
         if (lvlCorrect == false) {
             cout << "on level " << lvl << " encountered dimension " << 
                 head->descr.dim << " border is " << head->descr.border << endl;
@@ -250,8 +250,8 @@ bool dimSameAsLevel(inscy_node *head, int lvl = 0) {
     for (int i = 0; i < 2*bins; i++) {
         inscy_node *child = head->children[i];
         if (child != NULL) {
-            lvlCorrect = lvlCorrect & (child->descr.dim == lvl);
-            dimSameAsLevel(child, lvl+1);
+            // lvlCorrect = lvlCorrect & (child->descr.dim == lvl);
+            lvlCorrect = lvlCorrect & dimSameAsLevel(child, lvl+1);
         }
     }
     return lvlCorrect;
