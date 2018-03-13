@@ -6,7 +6,8 @@ OBJ = ./obj
 OBJ_FILES = $(OBJ)/util.o \
 			$(OBJ)/clustering.o \
 			$(OBJ)/subspace.o \
-			$(OBJ)/inscy.o \
+			$(OBJ)/inscy_init.o \
+			$(OBJ)/inscy_algorithm.o \
 			$(OBJ)/main.o
 
 CC = g++
@@ -23,8 +24,11 @@ $(BIN)/main: $(OBJ_FILES)
 $(OBJ)/main.o: $(SRC)/main.cpp $(INC)/main.h
 	$(CC) $(CFLAGS) -o $(OBJ)/main.o $(SRC)/main.cpp
 
-$(OBJ)/inscy.o: $(SRC)/inscy.cpp $(INC)/inscy.h
-	$(CC) $(CFLAGS) -o $(OBJ)/inscy.o $(SRC)/inscy.cpp
+$(OBJ)/inscy_init.o: $(SRC)/inscy_init.cpp $(INC)/inscy.h
+	$(CC) $(CFLAGS) -o $(OBJ)/inscy_init.o $(SRC)/inscy_init.cpp
+
+$(OBJ)/inscy_algorithm.o: $(SRC)/inscy_algorithm.cpp $(INC)/inscy.h
+	$(CC) $(CFLAGS) -o $(OBJ)/inscy_algorithm.o $(SRC)/inscy_algorithm.cpp
 
 $(OBJ)/subspace.o: $(SRC)/subspace.cpp $(INC)/subspace.h
 	$(CC) $(CFLAGS) -o $(OBJ)/subspace.o $(SRC)/subspace.cpp
