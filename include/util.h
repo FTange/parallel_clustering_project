@@ -1,12 +1,9 @@
 #ifndef __UTIL_H_INCLUDED
 #define __UTIL_H_INCLUDED
 
-#include <iostream>
 #include <vector>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
 #include <set>
+#include <string>
 
 std::vector<std::vector<float> > read_csv(std::string filename);
 

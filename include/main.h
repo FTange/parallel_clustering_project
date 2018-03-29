@@ -7,9 +7,10 @@
 #include "util.h"
 #include "clustering.h"
 #include "subspace.h"
-
-using namespace std;
+#include "inscy.h"
 
 int main();
+
+void meassure_subclue(std::vector<std::vector<float> > &db, std::string filename);
 
 #endif

@@ -4,8 +4,8 @@
 #include "util.h"
 #include "clustering.h"
 
-void subspace_clustering(std::vector<std::vector<float> > &db, int dim, 
-					double epsilon, int minPts);
+int subspace_clustering(std::vector<std::vector<float> > &db, int dim, 
+					double epsilon, int minPts, int nthreads);
 
 // enumerate all subspaces
 void subspace_clustering_enum(std::vector<std::vector<float> > &db, int dim, 
