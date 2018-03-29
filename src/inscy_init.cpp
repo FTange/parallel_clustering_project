@@ -1,6 +1,7 @@
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include <algorithm>
 
 #include "inscy.h"
 
@@ -11,7 +12,7 @@ using std::endl;
 
 void insert_point(inscy_node *head, vector<float> &point, double eps,
         vector<float> &mins, vector<float> &maxs, vector<double> &interval_size,
-        int currLvl = 1, bool borderPath = false);
+        int currLvl = 0, bool borderPath = false);
 void find_min_max_intervals( std::vector<std::vector<float> > &db,
         vector<float> &maxs, vector<float> &mins, vector<double> &intervals);
 
@@ -20,6 +21,9 @@ inline inscy_node *insert_node(inscy_node *head, short dim, short interval,
         bool isBorderPoint, bool isBorderDim);
 inline int find_bin(float min, double interval, float value);
 
+vector<float> maxs;
+vector<float> mins;
+vector<double> interval_size;
 
 /*
  * insert a row number when we get to the end, 
@@ -38,16 +42,38 @@ inline int find_bin(float min, double interval, float value);
 inscy_node *init_scy_tree(std::vector<std::vector<float> > &db, double eps) {
 
     int dim = db[0].size();
-    vector<float> maxs = db[0];
-    vector<float> mins = db[0];
-    vector<double> interval_size(db[0].size());
+    maxs = db[0];
+    mins = db[0];
+    interval_size.resize(db[0].size());
 
     find_min_max_intervals(db, maxs, mins, interval_size);
 
     inscy_node *root = new inscy_node();
 
+    /*
+    cout << "maxs" << endl;
+    for (float i : maxs) {
+        cout << i << " ";
+    }
+    cout << endl << "mins" << endl;
+    for (float i : mins) {
+        cout << i << " ";
+    }
+    cout << endl << "interval sizes" << endl;
+    for (float i : interval_size) {
+        cout << i << " ";
+    }
+    cout << endl;
+    */
+
     int bin;
     for (int i = 0, j; i < db.size(); i++) {
+        /*
+        if (i == 6) {
+            int b = find_bin(mins[0], interval_size[0], db[i][0]);
+            cout << "bin is " << b << endl;
+        }
+        */
         insert_point(root, db[i], eps, mins, maxs, interval_size);
     }
 
@@ -98,11 +124,11 @@ void insert_point(inscy_node *head, vector<float> &point, double eps,
         head = child;
     }
     // create nodes from j to d
-    for ( ; j <= point.size(); j++) {
+    for ( ; j < point.size(); j++) {
         bin = find_bin(mins[j], interval_size[j], point[j]);
         bool isBorderDim = std::fmod((point[j] - mins[j]), interval_size[j]) < eps;
 
-        head = insert_node(head, j, bin, borderPath, isBorderDim);
+        head = insert_node(head, j+1, bin, borderPath, isBorderDim);
     }
 }
 
@@ -124,6 +150,11 @@ inline inscy_node *find_child(inscy_node *head, int bin, bool border) {
 // calculates a value between 0 and interval for each value `value`
 // (value - min) / ((max - min - min) / intervals)
 inline int find_bin(float min, double interval, float value) {
+    /*
+    if (fabs(value - 0.4881189) < 0.1) {
+        cout << value << " " << fabs(value - 0.4881189) << endl;
+    }
+    */
     int bin = (int) ((value - min) / interval);
     if (bin == bins) bin--;
     return bin;
@@ -152,6 +183,47 @@ void delete_scy_tree(inscy_node *head) {
         delete_scy_tree(head->children[i]);
     }
     delete head;
+}
+
+bool isclose(double a, double b, double eps = 0.000001) {
+    return fabs(a - b) < eps;
+}
+
+/*
+ * Assumes at least one point in db and that all have same number of dimensions
+ */
+vector<vector<float> > get_points(vector<vector<float> > &db, 
+        vector<restriction> &restrictions) {
+    vector<vector<float> > points;
+    int d = db[0].size();
+    for (int i = 0; i < db.size(); i++) {
+        int j = 0, k = 0;
+        while (k < restrictions.size()) {
+            restriction next_res = restrictions[k];
+            // find net restricted dimension
+            while (j < next_res.dim-1) { // restrictions are 1-indexed
+                j++;
+            }
+            // is i in the restricted section?
+            double lowerbound = mins[j] + next_res.from * interval_size[j];
+            double upperbound = mins[j] + next_res.to * interval_size[j];
+            // if upperbound is close to max[j] set it to the max of the two, due to
+            // float imprecision
+            upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j])
+                                                        : upperbound;
+            if (db[i][j] < lowerbound || upperbound < db[i][j]) {
+                break;
+            }
+            k++;
+        }
+        // i satisfies all the k restrictions
+        if (k == restrictions.size()) {
+            // add db[i] to points
+            points.push_back(db[i]);
+        }
+    }
+
+    return points;
 }
 
 
