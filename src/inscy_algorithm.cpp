@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "inscy.h"
+#include "clustering.h"
 
 using std::vector;
 using std::cout;
@@ -10,7 +11,7 @@ using std::endl;
 void print_scy_tree(inscy_node *head, int level = 0);
 int find_dim_lvl(inscy_node *head, descriptor descr, int lvl = 0);
 
-void inscy_algorithm(vector<vector<float> > &db, double eps, int minPts) {
+void inscy_algorithm(vector<vector<float> > &db, double eps, double delta, int minPts) {
     inscy_node *t1 = init_scy_tree(db, eps);
     // inscy_node *t2 = copy_tree(t1);
     // inscy_node *new_tree = merge_trees(t1, t2);
@@ -18,18 +19,40 @@ void inscy_algorithm(vector<vector<float> > &db, double eps, int minPts) {
     print_scy_tree(t1);
 
     vector<restriction> restricted_dimensions;
-    eDusc(t1, minPts, restricted_dimensions, 0, db[0].size(), db);
+    vector<cluster> clusters;
+    eDusc(t1, minPts, restricted_dimensions, 0, db[0].size(), db, eps, delta, clusters);
+
+    cout << "found " << clusters.size() << " clusters" << endl;
+    for (cluster c : clusters) {
+        cout << c.points.size() << endl;
+        for (restriction r : c.subspace) {
+            cout << "  " << r.dim << " " << r.from << " " << r.to << endl;
+        }
+        cout << endl;
+    }
 
     /*
     vector<restriction> restricted_dimensions;
-    restriction r1 = {1, 2, 3};
-    restriction r2 = {2, 2, 3};
-    restriction r3 = {3, 0, 1};
+    restriction r1 = {1, 0, 3};
+    restriction r2 = {2, 0, 3};
+    restriction r3 = {3, 0, 3};
     restricted_dimensions.push_back(r1);
     restricted_dimensions.push_back(r2);
     restricted_dimensions.push_back(r3);
-    vector<vector<float> > points = get_points(db, restricted_dimensions);
+    vector<point> points = get_points(db, restricted_dimensions);
     cout << points.size() << endl;
+    for (point p : points) {
+        cout << p.index << " " << p.values.size() << endl;
+    }
+    vector<cluster> blah;
+    dbscan_inscy(points, eps, minPts, restricted_dimensions, blah);
+
+
+    vector<int> clusters = dbscan(db, eps, minPts, euclid_dist);
+    cout << "clusters found regular" << endl;
+    for (int c : clusters) {
+        cout << c << endl;
+    }
     */
 
     /*
@@ -70,8 +93,17 @@ void inscy_algorithm(vector<vector<float> > &db, double eps, int minPts) {
     // restrict tree
 }
 
-void eDusc(inscy_node *root, int minPts, vector<restriction> &restricted_dims
-        , int lvl, int dims, vector<vector<float> > &db) {
+// lvl is only for printing purposes
+void eDusc(inscy_node *root, 
+           int minPts, 
+           vector<restriction> &restricted_dims,
+           int lvl, 
+           int dims, 
+           vector<vector<float> > &db, 
+           double eps, 
+           double delta,
+           vector<cluster> &clusters) {
+
     int next_dim;
     if (restricted_dims.size() == 0) {
         next_dim = 1;
@@ -96,10 +128,39 @@ void eDusc(inscy_node *root, int minPts, vector<restriction> &restricted_dims
             cout << endl;
 
             inscy_node *tree_border = restrict_tree(root, {dim, interv, 1});
+
+            // induce merge into future
+
+            // merge with preds
+
+            if (restricted_tree->count < minPts) {
+                continue;
+            }
             
             short interv_to = interv + 1;
             restricted_dims.push_back({dim, interv, interv_to});
-            eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, db);
+            int first_superspace_cl = clusters.size();
+            eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, db, eps, delta, clusters);
+            int last_superspace_cl = clusters.size();
+
+            // check whether there is another cluster from deeper in the recursion
+            // which contains restricted_tree->count or more points, if not, cluster the points
+            int c;
+            for (c = first_superspace_cl; c < last_superspace_cl; c++) {
+                if (clusters[c].points.size() * delta >= restricted_tree->count) {
+                    break;
+                }
+            }
+            // broke out of previous loop, rendundant superspace cluster exists
+            if (c < clusters.size()) {
+                restricted_dims.pop_back();
+                continue;
+            }
+
+            // find the points in hypercupe, cluster them and add to clusters
+            vector<point> points = get_points(db, restricted_dims);
+            dbscan_inscy(points, eps, minPts, restricted_dims, clusters);
+
             restricted_dims.pop_back();
         }
     }
