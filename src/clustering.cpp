@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "clustering.h"
 
 using std::vector;
@@ -43,6 +45,95 @@ void dbscan(vector<vector<float> > &db, double eps, int minPts,
 		}
 	}
 }
+
+
+
+
+// ------------------------------------------------------------
+// versions for inscy working with vector<point>...
+void extend_cluster(vector<point> &db, int point, double eps, int minPts,
+					std::function<double (vector<float> &, vector<float> &)> dist, 
+					vector<int> &clustering, int currCluster) {
+	int neighborhood_size = 0;
+	vector<int> unclustered_neighbors;
+	// go through all points and see if the current point is a core point
+	// and find all unclassified neighbors
+	for (int i = 0; i < db.size(); i++) {
+		if (i == point) { continue; }
+		double dist_i = dist(db[point].values, db[i].values);
+		// cout << dist_i << endl;
+		if (dist_i <= eps) {
+			neighborhood_size++;
+			// the neighbor we have found is unclassified
+			if (clustering[i] == 0) {
+				unclustered_neighbors.push_back(i);
+			}
+		}
+	}
+
+	// if point is a new core point, go through all its unclustered neighbors
+	if (neighborhood_size >= minPts) {
+		clustering[point] = currCluster;
+		for (int neighbor : unclustered_neighbors) {
+			if (clustering[neighbor] != 0) {
+				cout << "why are we here" << endl;
+			}
+			clustering[neighbor] = currCluster;
+		}
+		for (int neighbor : unclustered_neighbors) {
+			// recursively extend cluster by going through unclustered points in neighborhood
+			extend_cluster(db, neighbor, eps, minPts, dist, clustering, currCluster);
+		}
+	}
+}
+
+
+vector<int> dbscan(vector<point> &db, double eps, int minPts,
+				 std::function<double (vector<float> &, vector<float> &)> dist) {
+	int n = db.size();
+	vector<int> clustering(n);
+
+	int numCluster = 1;
+	for (int i = 0; i < n; i++ ) {
+		if (clustering[i] != 0) { continue; } /* i is already classified */
+
+		// if i has been added to new cluster, increment numCluster
+		extend_cluster(db, i, eps, minPts, dist, clustering, numCluster);
+		// point i and everything density-reachable from it has been added to numCluster
+		if (clustering[i] == numCluster) {
+			numCluster++;
+		}
+	}
+
+	return clustering;
+}
+
+void dbscan_inscy(vector<point> &db, double eps, int minPts,
+                  vector<restriction> restricted_dimensions,
+				  vector<cluster> &clustering) {
+    vector<int> clusters = dbscan(db, eps, minPts, euclid_dist);
+
+    int max = *std::max_element(clusters.begin(), clusters.end());
+    for (int i = 1; i <= max; i++) {
+        cluster new_cluster_i;
+        new_cluster_i.subspace = restricted_dimensions;
+        for (int j = 0; j < db.size(); j++) {
+            if (clusters[j] == i) {
+                new_cluster_i.points.push_back(db[j].index);
+            }
+        }
+        clustering.push_back(new_cluster_i);
+    }
+
+    // store the vector<restriction> together with any clusters found,
+    // wastes some space but it is available and you store it together with a cluster
+    // so it is d space together with an entire cluster, depends on the expected size of a cluster
+}
+
+// ------------------------------------------------------------
+
+
+
 
 /*
  * Should unclustered_neighbors be a parameter so it can be reused?

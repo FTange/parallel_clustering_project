@@ -7,6 +7,7 @@
 #include <functional>
 
 #include "util.h"
+#include "inscy.h"
 
 std::vector<int> dbscan(std::vector<std::vector<float> > &db, double eps, int minPts, 
 				 std::function<double (std::vector<float> &, 
@@ -28,6 +29,11 @@ int neighborhood(std::vector<std::vector<float> > &db,
 				 double eps,
 				 std::function<double (std::vector<float> &, std::vector<float> &)> dist, /* distance function */
 				 int *neighborhood); /* array of size n to store the neighbors in */
+
+
+void dbscan_inscy(std::vector<point> &db, double eps, int minPts,
+                  std::vector<restriction> restricted_dimensions,
+				  std::vector<cluster> &clustering);
 
 /*
  * Extend a cluster by finding neighbors of point, and if point is core 
