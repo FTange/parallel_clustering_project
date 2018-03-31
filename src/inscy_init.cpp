@@ -191,10 +191,49 @@ bool isclose(double a, double b, double eps = 0.000001) {
 
 /*
  * Assumes at least one point in db and that all have same number of dimensions
+ *
+ * Returns only restricted dimensions
  */
-vector<vector<float> > get_points(vector<vector<float> > &db, 
+vector<point> get_points(vector<vector<float> > &db, 
         vector<restriction> &restrictions) {
-    vector<vector<float> > points;
+    vector<point> points;
+    vector<float> curr_point(restrictions.size());
+    int d = db[0].size();
+    for (int i = 0; i < db.size(); i++) {
+        int j = 0, k = 0;
+        while (k < restrictions.size()) {
+            restriction next_res = restrictions[k];
+            // find net restricted dimension
+            while (j < next_res.dim-1) { // restrictions are 1-indexed
+                j++;
+            }
+            // is i in the restricted section?
+            double lowerbound = mins[j] + next_res.from * interval_size[j];
+            double upperbound = mins[j] + next_res.to * interval_size[j];
+            // if upperbound is close to max[j] set it to the max of the two, due to
+            // float imprecision
+            upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j])
+                                                        : upperbound;
+            if (db[i][j] < lowerbound || upperbound < db[i][j]) {
+                break;
+            }
+            curr_point[k] = db[i][j];
+            k++;
+        }
+        // i satisfies all the k restrictions
+        if (k == restrictions.size()) {
+            // add db[i] to points
+            points.push_back({i, curr_point});
+        }
+    }
+
+    return points;
+}
+
+// returns all the dimensions of the described points
+vector<point> get_points_all_dim(vector<vector<float> > &db, 
+        vector<restriction> &restrictions) {
+    vector<point> points;
     int d = db[0].size();
     for (int i = 0; i < db.size(); i++) {
         int j = 0, k = 0;
@@ -219,7 +258,7 @@ vector<vector<float> > get_points(vector<vector<float> > &db,
         // i satisfies all the k restrictions
         if (k == restrictions.size()) {
             // add db[i] to points
-            points.push_back(db[i]);
+            points.push_back({i, db[i]});
         }
     }
 
