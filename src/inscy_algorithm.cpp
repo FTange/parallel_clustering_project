@@ -112,6 +112,8 @@ void eDusc(inscy_node *root,
     }
 
     for (short dim = next_dim; dim <= dims; dim++) {
+        inscy_node *prev_tree = NULL;
+        restriction prev_restr;
         for (short interv = 0; interv < bins; interv++) {
             for (int ind = 0; ind < lvl; ind++) {
                 cout << "    ";
@@ -121,24 +123,39 @@ void eDusc(inscy_node *root,
                 ((restricted_tree == NULL) ? 0 : restricted_tree->count)
                 << " points";
 
+            inscy_node *tree_border = restrict_tree(root, {dim, interv, 1});
+
+            restriction restr;
+            if (prev_tree != NULL) {
+                restricted_tree = merge_trees(restricted_tree, prev_tree);
+                restr = prev_restr;
+                restr.to = interv + 1;
+                cout << " merging with previous tree, now containing " << 
+                    restricted_tree->count << " points, ";
+            } else {
+                short interv_to = interv + 1;
+                restr = {dim, interv, interv_to};
+            }
+
+            if (tree_border != NULL && interv < (bins-1)) {
+                cout << " point in border so continuing " << endl;
+                prev_tree = restricted_tree;
+                prev_restr = restr;
+                continue;
+            }
+
             if (restricted_tree == NULL) {
                 cout << " continuing as restricted tree is null" << endl;
                 continue;
             }
-            cout << endl;
-
-            inscy_node *tree_border = restrict_tree(root, {dim, interv, 1});
-
-            // induce merge into future
-
-            // merge with preds
 
             if (restricted_tree->count < minPts) {
+                cout << " less than minPts, " << endl;
                 continue;
             }
-            
-            short interv_to = interv + 1;
-            restricted_dims.push_back({dim, interv, interv_to});
+
+            cout << endl;
+            restricted_dims.push_back(restr);
             int first_superspace_cl = clusters.size();
             eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, db, eps, delta, clusters);
             int last_superspace_cl = clusters.size();
@@ -152,16 +169,15 @@ void eDusc(inscy_node *root,
                 }
             }
             // broke out of previous loop, rendundant superspace cluster exists
-            if (c < clusters.size()) {
-                restricted_dims.pop_back();
-                continue;
+            if ( !(c < clusters.size()) ) {
+                // find the points in hypercube, cluster them and add to clusters
+                // cout << " clustering in subspace ";
+                vector<point> points = get_points(db, restricted_dims);
+                dbscan_inscy(points, eps, minPts, restricted_dims, clusters);
             }
 
-            // find the points in hypercupe, cluster them and add to clusters
-            vector<point> points = get_points(db, restricted_dims);
-            dbscan_inscy(points, eps, minPts, restricted_dims, clusters);
-
             restricted_dims.pop_back();
+            prev_tree = NULL;
         }
     }
 }

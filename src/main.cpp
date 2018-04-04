@@ -1,5 +1,3 @@
-#include "main.h"
-
 #include <chrono>
 #include <bitset>
 #include <fstream>
@@ -7,13 +5,15 @@
 #include <stdio.h>
 #include <memory.h>
 
+#include "main.h"
+
 using namespace std;
 
 int main() {
 	// vector<vector<float> > data = read_csv("x.csv");
 	// vector<vector<float> > data = read_csv("../../datasets/glass/glass.data");
 	vector<vector<float> > data = read_csv("10pts_3dim.csv");
-    inscy_algorithm(data, 0.05, 5);
+    inscy_algorithm(data, 0.8, 1, 2);
 
     /*
     int a = 17;
