@@ -204,17 +204,16 @@ vector<point> get_points(vector<vector<float> > &db,
         while (k < restrictions.size()) {
             restriction next_res = restrictions[k];
             // find net restricted dimension
-            while (j < next_res.dim-1) { // restrictions are 1-indexed
-                j++;
-            }
+            j = next_res.dim-1;
+
             // is i in the restricted section?
             double lowerbound = mins[j] + next_res.from * interval_size[j];
             double upperbound = mins[j] + next_res.to * interval_size[j];
             // if upperbound is close to max[j] set it to the max of the two, due to
             // float imprecision
-            upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j])
+            upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j]) + 0.001
                                                         : upperbound;
-            if (db[i][j] < lowerbound || upperbound < db[i][j]) {
+            if (db[i][j] < lowerbound || upperbound <= db[i][j]) {
                 break;
             }
             curr_point[k] = db[i][j];
@@ -239,18 +238,16 @@ vector<point> get_points_all_dim(vector<vector<float> > &db,
         int j = 0, k = 0;
         while (k < restrictions.size()) {
             restriction next_res = restrictions[k];
-            // find net restricted dimension
-            while (j < next_res.dim-1) { // restrictions are 1-indexed
-                j++;
-            }
+            j = next_res.dim-1;
+
             // is i in the restricted section?
             double lowerbound = mins[j] + next_res.from * interval_size[j];
             double upperbound = mins[j] + next_res.to * interval_size[j];
             // if upperbound is close to max[j] set it to the max of the two, due to
             // float imprecision
-            upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j])
+            upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j]) + 0.001
                                                         : upperbound;
-            if (db[i][j] < lowerbound || upperbound < db[i][j]) {
+            if (db[i][j] < lowerbound || upperbound <= db[i][j]) {
                 break;
             }
             k++;
@@ -266,6 +263,61 @@ vector<point> get_points_all_dim(vector<vector<float> > &db,
 }
 
 
+vector<point> get_points_all_dim(vector<point> &db, restriction &new_restr) {
+    vector<point> points;
+    int j = new_restr.dim-1;
+    /*
+    double lowerbound = mins[j] + new_restr.from * interval_size[j];
+    double upperbound = mins[j] + new_restr.to   * interval_size[j];
+    // add a little extra so that max is in the last grid and not its own
+    upperbound = (isclose(upperbound, maxs[j])) ? fmax(upperbound, maxs[j]) + 0.001
+                                                : upperbound;
+    */
+
+    for (int i = 0; i < db.size(); i++) {
+        int bin = (int) ((db[i].values[j] - mins[j]) / interval_size[j]);
+        if (bin == bins) bin--;
+        if (new_restr.from <= bin && bin < new_restr.to) {
+            points.push_back(db[i]);
+        }
+        /*
+        if (lowerbound <= db[i].values[j] && db[i].values[j] < upperbound) {
+            points.push_back(db[i]);
+        }
+        */
+    }
+
+    return points;
+}
+
+// testing function
+bool point_in_restriction(vector<point> point, vector<restriction> &restrictions) {
+    for (int i = 0; i < point.size(); i++) {
+        for (int j = 0; j < restrictions.size(); j++) {
+            int dim = restrictions[j].dim-1;
+            float value = point[i].values[dim];
+            double lowerbound = mins[dim] + restrictions[j].from * interval_size[dim];
+            double upperbound = mins[dim] + restrictions[j].to   * interval_size[dim];
+            if (value < lowerbound || upperbound <= value) {
+                cout << "point is not in restriction" << endl;
+            }
+            int bin = (int) ((value - mins[dim]) / interval_size[dim]);
+            if (bin == bins) bin--;
+            if (bin < restrictions[j].from || restrictions[j].to <= bin) {
+                cout << "point is not in the bin according to find_bin" << endl <<
+                    "   bin is " << bin << " while restriction is " << restrictions[j].from
+                    << "-" << restrictions[j].to << endl;
+                cout << "value is " << value << endl
+                    << "min " << mins[dim] << endl
+                    << "max " << maxs[dim] << endl
+                    << "interval " << interval_size[dim] << endl
+                    << "lowerbound " << lowerbound << endl
+                    << "upperbound " << upperbound << endl << endl;
+            }
+        }
+    }
+    return false;
+}
 
 /*
 // doesn't work

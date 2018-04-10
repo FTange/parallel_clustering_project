@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#define bins 3
+#define bins 9
 
 // define structs used in inscy tree
 struct descriptor {
@@ -48,10 +48,13 @@ void eDusc(inscy_node *root,
            std::vector<restriction> &restricted_dims,
            int lvl,
            int dims,
-           std::vector<std::vector<float> > &db,
+           std::vector<point> &db,
            double eps,
            double delta,
            std::vector<cluster> &clusters);
+
+bool weak_density_scan(std::vector<point> &db, double eps, int minPts,
+                  std::vector<restriction> restricted_dimensions);
 
 inscy_node *merge_trees(inscy_node *t1, inscy_node*t2);
 
@@ -62,5 +65,10 @@ inscy_node *copy_tree(inscy_node *head);
 std::vector<point> get_points(std::vector<std::vector<float> > &db, 
         std::vector<restriction> &restrictions);
 
+std::vector<point> get_points_all_dim(std::vector<point> &db, restriction &new_restr);
+
+bool point_in_restriction(std::vector<point> point, std::vector<restriction> &restrictions);
+
+bool descriptor_in_tree(inscy_node *head, descriptor descr);
 
 #endif

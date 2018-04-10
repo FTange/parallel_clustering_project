@@ -108,10 +108,25 @@ vector<int> dbscan(vector<point> &db, double eps, int minPts,
 	return clustering;
 }
 
+double euclid_dist_inscy(vector<restriction> restr_dim, 
+                         vector<float> &p1, vector<float> &p2) {
+	double distance = 0;
+	for (restriction d : restr_dim) {
+		double difference = p1[d.dim-1] - p2[d.dim-1];
+		distance += difference * difference;
+	}
+
+	return sqrt(distance);
+}
+
 void dbscan_inscy(vector<point> &db, double eps, int minPts,
                   vector<restriction> restricted_dimensions,
 				  vector<cluster> &clustering) {
-    vector<int> clusters = dbscan(db, eps, minPts, euclid_dist);
+    auto restricted_dist = [&] (vector<float> &a, vector<float> &b) {
+        return euclid_dist_inscy(restricted_dimensions, a, b); 
+    };
+
+    vector<int> clusters = dbscan(db, eps, minPts, restricted_dist);
 
     int max = *std::max_element(clusters.begin(), clusters.end());
     for (int i = 1; i <= max; i++) {

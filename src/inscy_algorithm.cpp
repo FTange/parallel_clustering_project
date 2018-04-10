@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 #include "inscy.h"
 #include "clustering.h"
@@ -16,13 +17,22 @@ void inscy_algorithm(vector<vector<float> > &db, double eps, double delta, int m
     // inscy_node *t2 = copy_tree(t1);
     // inscy_node *new_tree = merge_trees(t1, t2);
 
-    print_scy_tree(t1);
+    // print_scy_tree(t1);
 
     vector<restriction> restricted_dimensions;
     vector<cluster> clusters;
-    eDusc(t1, minPts, restricted_dimensions, 0, db[0].size(), db, eps, delta, clusters);
+    vector<point> db_points(db.size());
+    for (int i = 0; i < db.size(); i++) {
+        db_points[i] = {i, db[i]};
+    }
 
-    cout << "found " << clusters.size() << " clusters" << endl;
+    auto start = std::chrono::system_clock::now();
+    eDusc(t1, minPts, restricted_dimensions, 0, db[0].size(), db_points, eps, delta, clusters);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+
+    cout << "found " << clusters.size() << " clusters in " << elapsed.count() << endl;
+    /*
     for (cluster c : clusters) {
         cout << c.points.size() << endl;
         for (restriction r : c.subspace) {
@@ -30,6 +40,7 @@ void inscy_algorithm(vector<vector<float> > &db, double eps, double delta, int m
         }
         cout << endl;
     }
+    */
 
     /*
     vector<restriction> restricted_dimensions;
@@ -99,7 +110,7 @@ void eDusc(inscy_node *root,
            vector<restriction> &restricted_dims,
            int lvl, 
            int dims, 
-           vector<vector<float> > &db, 
+           vector<point> &db, 
            double eps, 
            double delta,
            vector<cluster> &clusters) {
@@ -115,71 +126,122 @@ void eDusc(inscy_node *root,
         inscy_node *prev_tree = NULL;
         restriction prev_restr;
         for (short interv = 0; interv < bins; interv++) {
-            for (int ind = 0; ind < lvl; ind++) {
-                cout << "    ";
-            }
+            // for (int ind = 0; ind < lvl; ind++) {
+                // cout << "    ";
+            // }
             inscy_node *restricted_tree = restrict_tree(root, {dim, interv, 0});
-            cout << "looking at interval " << interv << " in dimension " << dim << " with " << 
-                ((restricted_tree == NULL) ? 0 : restricted_tree->count)
-                << " points";
+            // cout << "looking at interval " << interv << " in dimension " << dim << " with " << 
+                // ((restricted_tree == NULL) ? 0 : restricted_tree->count) << " points";
 
-            inscy_node *tree_border = restrict_tree(root, {dim, interv, 1});
+            // inscy_node *tree_border = restrict_tree(root, {dim, interv, 1});
 
             restriction restr;
             if (prev_tree != NULL) {
                 restricted_tree = merge_trees(restricted_tree, prev_tree);
                 restr = prev_restr;
                 restr.to = interv + 1;
-                cout << " merging with previous tree, now containing " << 
-                    restricted_tree->count << " points, ";
+                prev_tree = NULL;
+                // cout << " merging with previous tree, now containing " << 
+                    // restricted_tree->count << " points, ";
             } else {
                 short interv_to = interv + 1;
                 restr = {dim, interv, interv_to};
             }
 
-            if (tree_border != NULL && interv < (bins-1)) {
-                cout << " point in border so continuing " << endl;
+            // if there is a point inside the border and we aren't in the last interval
+            // if (tree_border != NULL && interv < (bins-1)) {
+            if (descriptor_in_tree(root, {dim, interv, 1}) && interv < (bins-1)) {
+                // cout << " point in border so continuing " << endl;
                 prev_tree = restricted_tree;
                 prev_restr = restr;
                 continue;
             }
 
             if (restricted_tree == NULL) {
-                cout << " continuing as restricted tree is null" << endl;
+                // cout << " continuing as restricted tree is null" << endl;
                 continue;
             }
 
+            // first density filter
             if (restricted_tree->count < minPts) {
-                cout << " less than minPts, " << endl;
+                // cout << " less than minPts, " << endl;
+                continue;
+            }
+            // cout << endl;
+
+            // get the subset of points that are also in current region
+            vector<point> restr_db = get_points_all_dim(db, restr);
+
+            // debugging
+            if (restr_db.size() != restricted_tree->count) {
+                // cout << "tree has size " << restricted_tree->count << " database contains " << 
+                    // restr_db.size() << endl;
+                if (restricted_tree->count == 2 && restr_db.size() == 4) {
+                    restricted_dims.push_back(restr);
+                    point_in_restriction(restr_db, restricted_dims);
+                    exit(1);
+                }
+            }
+
+            // second density filter
+            if ( !weak_density_scan(restr_db, eps, minPts, restricted_dims) ) {
                 continue;
             }
 
-            cout << endl;
+
             restricted_dims.push_back(restr);
             int first_superspace_cl = clusters.size();
-            eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, db, eps, delta, clusters);
+            eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, restr_db, 
+                  eps, delta, clusters);
             int last_superspace_cl = clusters.size();
 
             // check whether there is another cluster from deeper in the recursion
             // which contains restricted_tree->count or more points, if not, cluster the points
+            // this only works for the first traversal due to dfs, need another approach
             int c;
+            /*
             for (c = first_superspace_cl; c < last_superspace_cl; c++) {
                 if (clusters[c].points.size() * delta >= restricted_tree->count) {
                     break;
                 }
             }
+            */
             // broke out of previous loop, rendundant superspace cluster exists
+            /*
             if ( !(c < clusters.size()) ) {
                 // find the points in hypercube, cluster them and add to clusters
-                // cout << " clustering in subspace ";
-                vector<point> points = get_points(db, restricted_dims);
-                dbscan_inscy(points, eps, minPts, restricted_dims, clusters);
+                dbscan_inscy(restr_db, eps, minPts, restricted_dims, clusters);
             }
+            */
+            dbscan_inscy(restr_db, eps, minPts, restricted_dims, clusters);
 
             restricted_dims.pop_back();
-            prev_tree = NULL;
         }
     }
+}
+
+
+
+bool weak_density_scan(vector<point> &db, double eps, int minPts,
+                  vector<restriction> restricted_dimensions) {
+    auto restricted_dist = [&] (vector<float> &a, vector<float> &b) {
+        return euclid_dist_inscy(restricted_dimensions, a, b); 
+    };
+    for (int i = 0; i < db.size(); i++) {
+        int in_neighborhood = 0;
+        for (int j = 0; j < db.size(); j++) {
+            if (i == j) { continue; }
+            if (restricted_dist(db[i].values, db[j].values) <= eps) {
+                in_neighborhood++;
+            }
+        }
+        if (in_neighborhood >= minPts) {
+            return true;
+        }
+    }
+    // cout << "no weak dense points, db size " << db.size() << " restricted in " 
+        // << restricted_dimensions.size() << endl;
+    return false;
 }
 
 /*
@@ -200,6 +262,34 @@ int find_dim_lvl(inscy_node *head, descriptor descr, int lvl) {
         }
     }
 }
+
+bool descriptor_in_tree_rec(inscy_node *head, descriptor descr, int lvl) {
+    if (head == NULL) { return false; }
+
+    if (lvl == 0) {
+        if (head->descr.interval    == descr.interval
+             && head->descr.dim    == descr.dim
+             && head->descr.border == descr.border) {
+            return true;
+        }
+        return false;
+    } else {
+        bool in_subtree = false;
+        for (int i = 0; i < 2*bins; i++) {
+            if (head->children[i] != NULL) {
+                in_subtree |= descriptor_in_tree_rec(head->children[i], descr, lvl-1);
+            }
+        }
+        return in_subtree;
+    }
+}
+
+bool descriptor_in_tree(inscy_node *head, descriptor descr) {
+    int lvl = find_dim_lvl(head, descr);
+    
+    return descriptor_in_tree_rec(head, descr, lvl);
+}
+
 
 inscy_node *restrict_tree_rec(inscy_node *head, descriptor descr, int lvl) {
     if (head == NULL) { return NULL; }

@@ -30,6 +30,8 @@ int neighborhood(std::vector<std::vector<float> > &db,
 				 std::function<double (std::vector<float> &, std::vector<float> &)> dist, /* distance function */
 				 int *neighborhood); /* array of size n to store the neighbors in */
 
+double euclid_dist_inscy(std::vector<restriction> restr_dim, 
+                         std::vector<float> &p1, std::vector<float> &p2);
 
 void dbscan_inscy(std::vector<point> &db, double eps, int minPts,
                   std::vector<restriction> restricted_dimensions,
