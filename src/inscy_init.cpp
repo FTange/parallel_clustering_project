@@ -3,6 +3,8 @@
 #include <cmath>
 #include <algorithm>
 
+#include <omp.h>
+
 #include "inscy.h"
 
 using std::vector;
@@ -11,7 +13,6 @@ using std::endl;
 
 
 void insert_point(inscy_node *head, vector<float> &point, double eps,
-        vector<float> &mins, vector<float> &maxs, vector<double> &interval_size,
         int currLvl = 0, bool borderPath = false);
 void find_min_max_intervals( std::vector<std::vector<float> > &db,
         vector<float> &maxs, vector<float> &mins, vector<double> &intervals);
@@ -74,7 +75,7 @@ inscy_node *init_scy_tree(std::vector<std::vector<float> > &db, double eps) {
             cout << "bin is " << b << endl;
         }
         */
-        insert_point(root, db[i], eps, mins, maxs, interval_size);
+        insert_point(root, db[i], eps);
     }
 
     // set count for root
@@ -97,12 +98,12 @@ inscy_node *init_scy_tree(std::vector<std::vector<float> > &db, double eps) {
 // Also in the border path we should insert the current dimension only as being a border if we 
 // are also a border point in the current dimension
 void insert_point(inscy_node *head, vector<float> &point, double eps,
-        vector<float> &mins, vector<float> &maxs, vector<double> &interval_size,
         int currLvl, bool borderPath) {
     int j = currLvl, bin;
+    // cout << "what the" << endl;
 
     // find how much already exists in the tree
-    for ( ; j <= point.size(); j++) {
+    for ( ; j < point.size(); j++) {
         bin = find_bin(mins[j], interval_size[j], point[j]);
         bool isBorderDim = std::fmod((point[j] - mins[j]), interval_size[j]) < eps;
         // even though this is a border dimension we are only looking for border node if 
@@ -113,7 +114,7 @@ void insert_point(inscy_node *head, vector<float> &point, double eps,
         // insert it as border below
         if (!borderPath && isBorderDim) {
             // insert border path if it does not already exist
-            insert_point(head, point, eps, mins, maxs, interval_size, j, true);
+            insert_point(head, point, eps, j, true);
         }
 
         // no child exists, create rest of path as new nodes

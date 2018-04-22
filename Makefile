@@ -8,6 +8,8 @@ OBJ_FILES = $(OBJ)/util.o \
 			$(OBJ)/subspace.o \
 			$(OBJ)/inscy_init.o \
 			$(OBJ)/inscy_algorithm.o \
+			$(OBJ)/inscy_cpu.o \
+			$(OBJ)/math_unsigned.o \
 			$(OBJ)/main.o
 
 CC = g++
@@ -30,6 +32,9 @@ $(OBJ)/inscy_init.o: $(SRC)/inscy_init.cpp $(INC)/inscy.h
 $(OBJ)/inscy_algorithm.o: $(SRC)/inscy_algorithm.cpp $(INC)/inscy.h
 	$(CC) $(CFLAGS) -o $(OBJ)/inscy_algorithm.o $(SRC)/inscy_algorithm.cpp
 
+$(OBJ)/inscy_cpu.o: $(SRC)/inscy_cpu.cpp $(INC)/inscy.h
+	$(CC) $(CFLAGS) -o $(OBJ)/inscy_cpu.o $(SRC)/inscy_cpu.cpp
+
 $(OBJ)/subspace.o: $(SRC)/subspace.cpp $(INC)/subspace.h
 	$(CC) $(CFLAGS) -o $(OBJ)/subspace.o $(SRC)/subspace.cpp
 
@@ -38,6 +43,9 @@ $(OBJ)/clustering.o: $(SRC)/clustering.cpp $(INC)/clustering.h
 
 $(OBJ)/util.o: $(SRC)/util.cpp $(INC)/util.h
 	$(CC) $(CFLAGS) -o $(OBJ)/util.o $(SRC)/util.cpp
+
+$(OBJ)/math_unsigned.o:
+	$(CC) $(CFLAGS) -o $(OBJ)/math_unsigned.o $(INC)/math_unsigned.cpp
 
 clean:
 	rm $(OBJ)/*.o

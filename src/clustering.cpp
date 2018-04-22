@@ -1,5 +1,7 @@
 #include <algorithm>
 
+#include <omp.h>
+
 #include "clustering.h"
 
 using std::vector;
@@ -126,7 +128,8 @@ void dbscan_inscy(vector<point> &db, double eps, int minPts,
         return euclid_dist_inscy(restricted_dimensions, a, b); 
     };
 
-    vector<int> clusters = dbscan(db, eps, minPts, restricted_dist);
+    // vector<int> clusters = dbscan(db, eps, minPts, restricted_dist);
+    vector<int> clusters = dbscan(db, eps, minPts, euclid_dist);
 
     int max = *std::max_element(clusters.begin(), clusters.end());
     for (int i = 1; i <= max; i++) {

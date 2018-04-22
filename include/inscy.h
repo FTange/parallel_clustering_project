@@ -2,8 +2,9 @@
 #define __INSCY_H_INCLUDED
 
 #include <vector>
+#include <deque>
 
-#define bins 9
+#define bins 3
 
 // define structs used in inscy tree
 struct descriptor {
@@ -48,7 +49,7 @@ void eDusc(inscy_node *root,
            std::vector<restriction> &restricted_dims,
            int lvl,
            int dims,
-           std::vector<point> &db,
+           std::vector<std::vector<float> > &db,
            double eps,
            double delta,
            std::vector<cluster> &clusters);
@@ -70,5 +71,46 @@ std::vector<point> get_points_all_dim(std::vector<point> &db, restriction &new_r
 bool point_in_restriction(std::vector<point> point, std::vector<restriction> &restrictions);
 
 bool descriptor_in_tree(inscy_node *head, descriptor descr);
+
+std::vector<bool> occupied_connectivity_borders(inscy_node *head, int dim);
+
+// restricts to multiple regions at a time
+inscy_node *restrict_tree(inscy_node *head, restriction restr);
+
+bool redundancy_scan(std::vector<cluster> clusters, 
+        std::vector<restriction> restricted_dims, double delta, int numPoints);
+
+void print_scy_tree(inscy_node *head, int level = 0);
+
+int find_dim_lvl(inscy_node *head, descriptor descr, int lvl = 0);
+
+/* ----------------------------------------
+ * cpu implementation
+ */
+void inscy_algorithm_cpu(std::vector<std::vector<float> > &db, 
+        double eps, double delta, int minPts, int num_threads);
+
+
+void eDusc_dim_cpu(inscy_node *root,
+                   int minPts,
+                   std::vector<restriction> &restricted_dims,
+                   int lvl,
+                   int dims,
+                   std::vector<std::vector<float> > &db,
+                   double eps,
+                   double delta,
+                   std::deque<cluster> &clusters);
+
+void eDusc_cpu(inscy_node *root,
+           int minPts,
+           std::vector<restriction> &restricted_dims,
+           int lvl,
+           int dims,
+           short curr_dim,
+           std::vector<std::vector<float> > &db,
+           double eps,
+           double delta,
+           std::deque<cluster> &clusters,
+           short first_bin, short last_bin);
 
 #endif

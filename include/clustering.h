@@ -20,6 +20,12 @@ void dbscan(std::vector<std::vector<float> > &db, double eps, int minPts,
 									   std::vector<float> &)> dist, /* distance function */
                  std::vector<int> &clustering
 		);
+
+// dbscan taking vector<point> as input
+std::vector<int> dbscan(std::vector<point> &db, double eps, int minPts,
+				 std::function<double (std::vector<float> &, std::vector<float> &)> dist);
+
+
 /*
  * calculate the neighors of point in db with dist less then eps
  * and store those neighobors in neighborhood and return the number found

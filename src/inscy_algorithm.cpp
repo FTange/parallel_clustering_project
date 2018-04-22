@@ -4,13 +4,12 @@
 
 #include "inscy.h"
 #include "clustering.h"
+#include "math_unsigned.cpp"
 
 using std::vector;
 using std::cout;
 using std::endl;
 
-void print_scy_tree(inscy_node *head, int level = 0);
-int find_dim_lvl(inscy_node *head, descriptor descr, int lvl = 0);
 
 void inscy_algorithm(vector<vector<float> > &db, double eps, double delta, int minPts) {
     inscy_node *t1 = init_scy_tree(db, eps);
@@ -18,16 +17,34 @@ void inscy_algorithm(vector<vector<float> > &db, double eps, double delta, int m
     // inscy_node *new_tree = merge_trees(t1, t2);
 
     // print_scy_tree(t1);
+    /*
+    vector<bool> occupied = occupied_connectivity_borders(t1, 1);
+    for (bool b : occupied) {
+        cout << b << endl;
+    }
+    */
 
     vector<restriction> restricted_dimensions;
     vector<cluster> clusters;
+    /*
     vector<point> db_points(db.size());
     for (int i = 0; i < db.size(); i++) {
         db_points[i] = {i, db[i]};
     }
+    */
+
+    // represent subspaces as arbitrary bitvectors
+    /*
+    math::Unsigned blah(0);
+    math::Unsigned shift(1);
+    for (int i = 0; i < 64; i++) {
+        blah |= (shift << i);
+    }
+    cout << blah << endl;
+    */
 
     auto start = std::chrono::system_clock::now();
-    eDusc(t1, minPts, restricted_dimensions, 0, db[0].size(), db_points, eps, delta, clusters);
+    eDusc(t1, minPts, restricted_dimensions, 0, db[0].size(), db, eps, delta, clusters);
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
@@ -110,7 +127,7 @@ void eDusc(inscy_node *root,
            vector<restriction> &restricted_dims,
            int lvl, 
            int dims, 
-           vector<point> &db, 
+           vector<vector<float> > &db, 
            double eps, 
            double delta,
            vector<cluster> &clusters) {
@@ -129,7 +146,7 @@ void eDusc(inscy_node *root,
             // for (int ind = 0; ind < lvl; ind++) {
                 // cout << "    ";
             // }
-            inscy_node *restricted_tree = restrict_tree(root, {dim, interv, 0});
+            inscy_node *restricted_tree = restrict_tree(root, descriptor({dim, interv, 0}));
             // cout << "looking at interval " << interv << " in dimension " << dim << " with " << 
                 // ((restricted_tree == NULL) ? 0 : restricted_tree->count) << " points";
 
@@ -140,6 +157,7 @@ void eDusc(inscy_node *root,
                 restricted_tree = merge_trees(restricted_tree, prev_tree);
                 restr = prev_restr;
                 restr.to = interv + 1;
+                delete_scy_tree(prev_tree);
                 prev_tree = NULL;
                 // cout << " merging with previous tree, now containing " << 
                     // restricted_tree->count << " points, ";
@@ -157,22 +175,19 @@ void eDusc(inscy_node *root,
                 continue;
             }
 
-            if (restricted_tree == NULL) {
-                // cout << " continuing as restricted tree is null" << endl;
-                continue;
-            }
-
             // first density filter
-            if (restricted_tree->count < minPts) {
+            if (restricted_tree == NULL || restricted_tree->count < minPts) {
                 // cout << " less than minPts, " << endl;
+                delete_scy_tree(restricted_tree);
                 continue;
             }
             // cout << endl;
 
             // get the subset of points that are also in current region
-            vector<point> restr_db = get_points_all_dim(db, restr);
+            // vector<point> restr_db = get_points_all_dim(db, restr);
 
             // debugging
+            /*
             if (restr_db.size() != restricted_tree->count) {
                 // cout << "tree has size " << restricted_tree->count << " database contains " << 
                     // restr_db.size() << endl;
@@ -182,44 +197,82 @@ void eDusc(inscy_node *root,
                     exit(1);
                 }
             }
+            */
+            // cout << endl;
 
             // second density filter
+            /*
             if ( !weak_density_scan(restr_db, eps, minPts, restricted_dims) ) {
                 continue;
             }
+            */
 
 
             restricted_dims.push_back(restr);
             int first_superspace_cl = clusters.size();
-            eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, restr_db, 
+            eDusc(restricted_tree, minPts, restricted_dims, lvl+1, dims, db, 
                   eps, delta, clusters);
             int last_superspace_cl = clusters.size();
 
-            // check whether there is another cluster from deeper in the recursion
-            // which contains restricted_tree->count or more points, if not, cluster the points
-            // this only works for the first traversal due to dfs, need another approach
-            int c;
-            /*
-            for (c = first_superspace_cl; c < last_superspace_cl; c++) {
-                if (clusters[c].points.size() * delta >= restricted_tree->count) {
-                    break;
-                }
-            }
-            */
-            // broke out of previous loop, rendundant superspace cluster exists
-            /*
-            if ( !(c < clusters.size()) ) {
-                // find the points in hypercube, cluster them and add to clusters
+            bool redundant = redundancy_scan(clusters, restricted_dims, delta, 
+                                             restricted_tree->count);
+            // bool redundant = false;
+            if (!redundant) {
+                vector<point> restr_db = get_points(db, restricted_dims);
                 dbscan_inscy(restr_db, eps, minPts, restricted_dims, clusters);
             }
-            */
-            dbscan_inscy(restr_db, eps, minPts, restricted_dims, clusters);
 
+            delete_scy_tree(restricted_tree);
             restricted_dims.pop_back();
         }
     }
 }
 
+// assumes restrictions are in sorted order of dimension
+bool redundancy_scan(vector<cluster> clusters, 
+        vector<restriction> restricted_dims, double delta, int numPoints) {
+
+    int numRestrictions = restricted_dims.size();
+    int j, k;
+    for (int i = 0; i < clusters.size(); i++) {
+        // if cluster[i] contains more restrictions
+        if (clusters[i].subspace.size() > numRestrictions) {
+            // if cluster[i] contains enough points for this cluster to be redundant
+            if (clusters[i].points.size() >= numPoints * delta) {
+                vector<restriction> &cluster_restrictions = clusters[i].subspace;
+                for (j = 0, k = 0; j < numRestrictions; j++) {
+                    while (cluster_restrictions[k].dim < restricted_dims[j].dim) { k++; }
+                    if (restricted_dims[j].dim != cluster_restrictions[k].dim) {
+                        break; // current cluster is not restricted in restricted_dims[j]
+                    }
+                    // current cluster is restricted in another region in current dim
+                    if (restricted_dims[j].from < cluster_restrictions[k].from
+                          || cluster_restrictions[k].to < restricted_dims[j].to) {
+                        break;
+                    }
+                }
+                /*we didn't break out of loop and clusters[i].points.size() 
+                      is less than redundancy parameter allows for, return true;*/
+                if (j == numRestrictions) {
+                    /*
+                    cout << "cluster of " << numPoints << " points in space ";
+                    for (restriction r : restricted_dims) {
+                        cout << r.dim << ":" << r.from << "-" << r.to << " ";
+                    }
+                    cout << "due to cluster of " << clusters[i].points.size() 
+                        << " points in space ";
+                    for (restriction r : cluster_restrictions) {
+                        cout << r.dim << ":" << r.from << "-" << r.to << " ";
+                    }
+                    cout << endl;
+                    */
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 
 
 bool weak_density_scan(vector<point> &db, double eps, int minPts,
@@ -321,6 +374,7 @@ inscy_node *restrict_tree_rec(inscy_node *head, descriptor descr, int lvl) {
         }
     }
     if (all_null) {
+        delete copy;
         return NULL;
     }
 
@@ -332,6 +386,83 @@ inscy_node *restrict_tree(inscy_node *head, descriptor descr) {
     
     return restrict_tree_rec(head, descr, lvl);
 }
+
+vector<bool> occupied_connectivity_borders(inscy_node *head, int dim) {
+    vector<bool> occupied(bins);
+    if (dim == 1) { // look for points in connectivity border
+        for (int i = 0; i < bins; i++) {
+            if (head->children[i*2+1] != NULL) {
+                occupied[i] = true;
+            }
+        }
+    } else { // recursively look through tree
+        for (int i = 0; i < bins; i++) {
+            inscy_node *child = head->children[2*i];
+            if (child != NULL) {
+                vector<bool> occupied_child = occupied_connectivity_borders(child, dim-1);
+                for (int j = 0; j < bins; j++) {
+                    occupied[j] = occupied[j] | occupied_child[j];
+                }
+            }
+        }
+    }
+
+    return occupied;
+}
+
+// copies all border and connectivity-borders in restr
+// needs an entire different approach where you merge different regions
+/*
+inscy_node *restrict_tree_rec(inscy_node *head, restriction restr, int lvl) {
+    if (head == NULL) { return NULL; }
+
+    inscy_node *copy = new inscy_node({head->descr});
+    if (lvl == 1) {
+        for (int child_index = 2*restr.from; child_index < 2*restr.to; child_index++) {
+            if (head->children[child_index] == NULL) { continue; }
+            inscy_node *child = head->children[child_index];
+            for (int i = 0; i < 2*bins; i++) {
+                if (child->children[i] != NULL) {
+                    copy->children[i] = copy_tree(child->children[i]);
+                    
+                }
+            }
+
+
+        }
+        inscy_node *child = head->children[child_index];
+        inscy_node *copy = new inscy_node({head->descr, child->count});
+        for (int i = 0; i < 2*bins; i++) {
+            if (child->children[i] != NULL) {
+                copy->children[i] = copy_tree(child->children[i]);
+            }
+        }
+        return copy;
+    }
+
+    bool all_null = true;
+    for (int i = 0; i < 2*bins; i++) {
+        if (head->children[i] != NULL) {
+            copy->children[i] = restrict_tree_rec(head->children[i], descr, lvl-1);
+            if (copy->children[i] != NULL) {
+                copy->count += copy->children[i]->count;
+                all_null = false;
+            }
+        }
+    }
+    if (all_null) {
+        return NULL;
+    }
+
+    return copy;
+}
+
+inscy_node *restrict_tree(inscy_node *head, restriction restr) {
+    int lvl = find_dim_lvl(head, {restr.dim, 0, 0});
+    
+    return restrict_tree_rec(head, restr, lvl);
+}
+*/
 
 
 // returns a new tree which is t1 and t2 merged
@@ -387,6 +518,7 @@ void print_scy_tree(inscy_node *head, int level) {
 }
 
 
+/*
 void eDusc_old(inscy_node *root, int minPts, short currDim, int lvl) {
     if (currDim == 0) {
         return;
@@ -425,11 +557,11 @@ void eDusc_old(inscy_node *root, int minPts, short currDim, int lvl) {
         // merge
 
         // prune based on minPts, no subspace can conatin minPts
-        /*
-        if (restricted_tree->count < minPts) {
-            continue;
-        }
-        */
+
+        // if (restricted_tree->count < minPts) {
+            // continue;
+        // }
+
         cout << " - recursing on " << 
             ((restricted_tree == NULL) ? 0 : restricted_tree->count) 
             << " points" << endl;
@@ -437,6 +569,7 @@ void eDusc_old(inscy_node *root, int minPts, short currDim, int lvl) {
         eDusc_old(restricted_tree, minPts, currDim-1, lvl+1);
     }
 }
+*/
 
 
 // returns an inscy_tree restricted to the descriptors
